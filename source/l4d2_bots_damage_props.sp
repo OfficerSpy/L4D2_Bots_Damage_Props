@@ -2,6 +2,13 @@
 #include <sdkhooks>
 #include <sdktools>
 
+#define MODEL_PROP_GASCAN	"models/props_junk/gascan001a.mdl"
+#define MODEL_PROP_OXYGEN	"models/props_equipment/oxygentank01.mdl"
+#define MODEL_PROP_PROPANE	"models/props_junk/propanecanister001a.mdl"
+#define MODEL_PROP_FIREWORKS	"models/props_junk/explosive_box001.mdl"
+
+int iPropModelIndexes[3];
+
 ConVar bots_survivor_damage_props;
 ConVar bots_infected_damage_gascans;
 
@@ -10,7 +17,7 @@ public Plugin myinfo =
 	name = "[L4D2] Bots Damage Props",
 	author = "Officer Spy",
 	description = "Allows bots to ignite certain props.",
-	version = "1.0.0",
+	version = "1.0.1",
 	url = ""
 };
 
@@ -25,7 +32,16 @@ public void OnEntityCreated(int entity, const char[] classname)
 	if (StrEqual(classname, "weapon_gascan"))
 		SDKHook(entity, SDKHook_OnTakeDamage, GasCan_OnTakeDamage);
 	
-	//TODO: the other exploding props
+	if (StrEqual(classname, "physics_prop"))
+		SDKHook(entity, SDKHook_OnTakeDamage, PropPhysics_OnTakeDamage);
+}
+
+public void OnMapStart()
+{
+	char propModels[][] = {MODEL_PROP_OXYGEN, MODEL_PROP_PROPANE, MODEL_PROP_FIREWORKS};
+	
+	for (int i = 0; i < sizeof(iPropModelIndexes); i++)
+		iPropModelIndexes[i] = PrecacheModel(propModels[i]);
 }
 
 public Action GasCan_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
@@ -56,11 +72,9 @@ public Action PropPhysics_OnTakeDamage(int victim, int &attacker, int &inflictor
 {
 	if (bots_survivor_damage_props.BoolValue && IsValidSurvivorBot(attacker) && IsExplosivePropWeapon(victim))
 	{
-		AcceptEntityInput(victim, "Break", attacker);
-		// return Plugin_Handled;
+		SDKHooks_TakeDamage(victim, attacker, GetActiveWeapon(attacker), damage, damagetype, weapon, NULL_VECTOR, damagePosition, true);
+		return Plugin_Handled;
 	}
-	
-	PrintToChatAll("PROP TAKE DAMAGE");
 	
 	return Plugin_Continue;
 }
@@ -103,14 +117,13 @@ bool IsExplosivePropWeapon(int entity)
 	//TODO: neither classname nor serverclass name are reliable here, because they change for prop_physics after being dropped by players
 	//Find a more reliable way to check these
 	
-	char model[PLATFORM_MAX_PATH]; GetEntityModelPath(entity, model, sizeof(model));
+	int modelIndex = GetEntProp(entity, Prop_Data, "m_nModelIndex");
 	
-	return StrContains(model, "explosive_box001.mdl") != -1 || StrContains(model, "oxygentank01.mdl") != -1 || StrContains(model, "propanecanister001a.mdl") != -1;
-}
-
-//From stocksoup/entity_prop_stocks.inc
-stock int GetEntityModelPath(int entity, char[] buffer, int maxlen) {
-	return GetEntPropString(entity, Prop_Data, "m_ModelName", buffer, maxlen);
+	for (int i = 0; i < sizeof(iPropModelIndexes); i++)
+		if (modelIndex == iPropModelIndexes[i])
+			return true;
+	
+	return false
 }
 
 /* I think the relevant functions are only calling CBasePlayer::IsBot on the attacker
