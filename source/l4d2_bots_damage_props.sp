@@ -17,7 +17,7 @@ public Plugin myinfo =
 	name = "[L4D2] Bots Damage Props",
 	author = "Officer Spy",
 	description = "Allows bots to ignite certain props.",
-	version = "1.0.1",
+	version = "1.0.2",
 	url = ""
 };
 
@@ -31,8 +31,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 {
 	if (StrEqual(classname, "weapon_gascan"))
 		SDKHook(entity, SDKHook_OnTakeDamage, GasCan_OnTakeDamage);
-	
-	if (StrEqual(classname, "physics_prop"))
+	else if (StrEqual(classname, "physics_prop"))
 		SDKHook(entity, SDKHook_OnTakeDamage, PropPhysics_OnTakeDamage);
 }
 
